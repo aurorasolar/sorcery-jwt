@@ -1,4 +1,5 @@
 require "sorcery/jwt/version"
+require "securerandom"
 require "jwt"
 
 module Sorcery
@@ -13,6 +14,8 @@ module Sorcery
             attr_accessor :jwt_algorithm
             # How long the session should be valid for in seconds. Will be set as the exp claim in the token.
             attr_accessor :session_expiry
+            # Enable the "jti" (JWT ID) [optional] claim to provide a unique identifier for the JWT.
+            attr_accessor :jwt_enable_jti
           end
 
           base.sorcery_config.instance_eval do
@@ -30,8 +33,13 @@ module Sorcery
 
         module ClassMethods
           def issue_token(payload)
-            exp_payload = payload.merge(exp: Time.now.to_i + @sorcery_config.session_expiry)
-            JWT.encode(exp_payload, @sorcery_config.jwt_secret, @sorcery_config.jwt_algorithm)
+            final_payload = payload.merge(exp: Time.now.to_i + @sorcery_config.session_expiry)
+            
+            if @sorcery_config.jwt_enable_jti
+              final_payload = final_payload.merge(jti: SecureRandom.uuid)
+            end
+
+            JWT.encode(final_payload, @sorcery_config.jwt_secret, @sorcery_config.jwt_algorithm)
           end
 
           def decode_token(token)
