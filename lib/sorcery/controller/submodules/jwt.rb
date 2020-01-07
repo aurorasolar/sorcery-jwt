@@ -25,13 +25,17 @@ module Sorcery
 
             @current_user = user
             auto_login(@current_user)
-            user_class.issue_token(id: @current_user.id, email: @current_user.email)
+
+            # Set '@token' so 'token' can be used immediately after logging in, instead of only
+            # in authenticated requests.
+            @token = user_class.issue_token(id: @current_user.id, email: @current_user.email)
           end
 
           private
 
           def token
-            return nil unless authorization_header
+            # Fallback to @token in case the user just logged in
+            return @token unless authorization_header
 
             authorization_header.split(" ").last
           end
@@ -42,6 +46,11 @@ module Sorcery
 
           def decoded_token
             user_class.decode_token(token)
+          end
+
+          # [Optional] The "jti" (JWT ID) claim is a unique identifier for the JWT (see RFC 7519).
+          def token_id
+            decoded_token.first['jti']
           end
         end
       end
